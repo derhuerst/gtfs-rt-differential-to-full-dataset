@@ -27,9 +27,11 @@
 		"protocol-buffers-encodings": "^1.1.0"
 	},
 	"devDependencies": {
+		"ndjson": "^1.5.0",
+		"pump": "^3.0.0"
 	},
 	"scripts": {
-		"test": "node test.js",
+		"test": "node test/index.js",
 		"prepublishOnly": "npm test"
 	}
 }

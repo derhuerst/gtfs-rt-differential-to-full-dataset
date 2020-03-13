@@ -23,12 +23,14 @@ const vehiclePositionSignature = (u) => {
 const gtfsRtAsDump = (opt = {}) => {
 	const {
 		ttl,
+		timestamp,
 	} = {
 		ttl: 5 * 60 * 1000, // 5 minutes
+		timestamp: () => Date.now() / 1000 | 0,
 		...opt
 	}
 
-	const entitiesStore = createEntitiesStore({ttl})
+	const entitiesStore = createEntitiesStore(ttl, timestamp)
 
 	const write = (entity) => {
 		// If the entity is not being deleted, exactly one of 'trip_update', 'vehicle' and 'alert' fields should be populated.
@@ -50,6 +52,11 @@ const gtfsRtAsDump = (opt = {}) => {
 		throw err
 	}
 
+	let feedMessage = null
+	const asFeedMessage = () => {
+		return feedMessage || entitiesStore.asFeedMessage()
+	}
+
 	const out = new Writable({
 		objectMode: true,
 		write: (entity, _, cb) => {
@@ -60,10 +67,14 @@ const gtfsRtAsDump = (opt = {}) => {
 			for (const {chunk: entity} of chunks) write(entity)
 			cb(null)
 		},
+		final: (cb) => {
+			feedMessage = entitiesStore.asFeedMessage()
+			entitiesStore.flush()
+			cb(null)
+		},
 	})
 
-	out.asFeedMessage = () => entitiesStore.asFeedMessage()
-
+	out.asFeedMessage = asFeedMessage
 	return out
 }
 
