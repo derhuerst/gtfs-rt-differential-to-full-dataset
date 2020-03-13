@@ -1,0 +1,35 @@
+{
+	"name": "gtfs-rt-differential-to-full-dataset",
+	"description": "Transform a differential GTFS Realtime feed into a full dataset/dump.",
+	"version": "1.0.0",
+	"main": "index.js",
+	"files": [
+		"index.js",
+		"writer.js",
+		"as-dump.js",
+		"lib"
+	],
+	"keywords": [
+		"public transport",
+		"transit",
+		"gtfs realtime",
+		"gtfs-rt",
+		"differential"
+	],
+	"author": "Jannis R <mail@jannisr.de>",
+	"homepage": "https://github.com/derhuerst/gtfs-rt-differential-to-full-dataset",
+	"repository": "derhuerst/gtfs-rt-differential-to-full-dataset",
+	"bugs": "https://github.com/derhuerst/gtfs-rt-differential-to-full-dataset/issues",
+	"license": "ISC",
+	"engines": {
+		"node": ">=10"
+	},
+	"dependencies": {
+	},
+	"devDependencies": {
+	},
+	"scripts": {
+		"test": "node test.js",
+		"prepublishOnly": "npm test"
+	}
+}
