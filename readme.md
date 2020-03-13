@@ -1,6 +1,8 @@
 # gtfs-rt-differential-to-full-dataset
 
-**Transform a [GTFS Realtime](https://developers.google.com/transit/gtfs-realtime/) with [`DIFFERENTIAL` incrementality](https://developers.google.com/transit/gtfs-realtime/reference/#enum-incrementality) feed into a [`FULL_DATASET`](https://developers.google.com/transit/gtfs-realtime/reference/#enum-incrementality) dump.**
+**Transform a continuous [GTFS Realtime](https://developers.google.com/transit/gtfs-realtime/) stream of [`DIFFERENTIAL` incrementality](https://developers.google.com/transit/gtfs-realtime/reference/#enum-incrementality) data into a [`FULL_DATASET`](https://developers.google.com/transit/gtfs-realtime/reference/#enum-incrementality) dump.**
+
+*Note:* Right now, this package *does not* obey the [draft `DIFFERENTIAL` spec](https://github.com/google/transit/issues/84) exactly. See below and [#1](https://github.com/derhuerst/gtfs-rt-differential-to-full-dataset/issues/1) for details.
 
 [![npm version](https://img.shields.io/npm/v/gtfs-rt-differential-to-full-dataset.svg)](https://www.npmjs.com/package/gtfs-rt-differential-to-full-dataset)
 [![build status](https://img.shields.io/travis/derhuerst/gtfs-rt-differential-to-full-dataset.svg)](https://travis-ci.org/derhuerst/gtfs-rt-differential-to-full-dataset)
@@ -19,8 +21,22 @@ npm install gtfs-rt-differential-to-full-dataset
 ## Usage
 
 ```js
-// todo
+const toFullDataset = require('gtfs-rt-differential-to-full-dataset')
+
+const toFull = toFullDataset({
+	ttl: 2 * 60 * 1000, // 2 minutes
+})
+toFull.on('error')
+
+differentialFeedEntities.pipe(toFull)
+setInterval(() => {
+	console.log(toFull.asFeedMessage())
+}, 5000)
 ```
+
+`toFull` will be a [writable stream](https://nodejs.org/api/stream.html#stream_class_stream_writable) in [object mode](https://nodejs.org/api/stream.html#stream_object_mode) that expects JS objects in the [`FeedEntity`](https://developers.google.com/transit/gtfs-realtime/reference/#message-feedentity) structure/format.
+
+`toFull.asFeedMessage()` returns a [protocol-buffer-encoded](https://developers.google.com/protocol-buffers/docs/overview) [`FeedMessage`](https://developers.google.com/transit/gtfs-realtime/reference/#message-feedmessage) with all relevant `FeedEntity` that have been written into `toFull` so far.
 
 
 ## Contributing
