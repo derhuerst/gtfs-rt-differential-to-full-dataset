@@ -28,15 +28,15 @@ const toFull = toFullDataset({
 })
 toFull.on('error')
 
-differentialFeedEntities.pipe(toFull)
+differentialFeedMessages.pipe(toFull)
 setInterval(() => {
 	console.log(toFull.asFeedMessage())
 }, 5000)
 ```
 
-`toFull` will be a [writable stream](https://nodejs.org/api/stream.html#stream_class_stream_writable) in [object mode](https://nodejs.org/api/stream.html#stream_object_mode) that expects JS objects in the [`FeedEntity`](https://developers.google.com/transit/gtfs-realtime/reference/#message-feedentity) structure/format.
+`toFull` will be a [writable stream](https://nodejs.org/api/stream.html#stream_class_stream_writable) in [object mode](https://nodejs.org/api/stream.html#stream_object_mode) that expects JS objects in the [`FeedMessage`](https://developers.google.com/transit/gtfs-realtime/reference/#message-feedmessage) structure/format.
 
-`toFull.asFeedMessage()` returns a [protocol-buffer-encoded](https://developers.google.com/protocol-buffers/docs/overview) [`FeedMessage`](https://developers.google.com/transit/gtfs-realtime/reference/#message-feedmessage) with all relevant `FeedEntity` that have been written into `toFull` so far.
+`toFull.asFeedMessage()` returns a [protocol-buffer-encoded](https://developers.google.com/protocol-buffers/docs/overview) [`FeedMessage`](https://developers.google.com/transit/gtfs-realtime/reference/#message-feedmessage) with all relevant `FeedEntity`s that have been written into `toFull` so far.
 
 
 ## Contributing
