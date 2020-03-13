@@ -1,7 +1,10 @@
 'use strict'
 
+const {FeedHeader} = require('gtfs-rt-bindings')
 const {Writable} = require('stream')
 const createEntitiesStore = require('./lib/entities-store')
+
+const {DIFFERENTIAL} = FeedHeader.Incrementality
 
 const tripSignature = (u) => {
 	if (u.trip.trip_id) return u.trip.trip_id
@@ -36,7 +39,7 @@ const gtfsRtAsDump = (opt = {}) => {
 
 	const entitiesStore = createEntitiesStore(ttl, timestamp)
 
-	const write = (entity) => {
+	const processFeedEntity = (entity) => {
 		// If the entity is not being deleted, exactly one of 'trip_update', 'vehicle' and 'alert' fields should be populated.
 		// https://developers.google.com/transit/gtfs-realtime/reference#message-feedentity
 		let sig = null
@@ -45,7 +48,7 @@ const gtfsRtAsDump = (opt = {}) => {
 		} else if (entity.vehicle) {
 			sig = vehiclePositionSignature(entity.vehicle)
 		}
-		// todo: alert
+		// todo: alert, see #1
 
 		if (sig !== null) {
 			entitiesStore.put(sig, entity)
@@ -55,6 +58,21 @@ const gtfsRtAsDump = (opt = {}) => {
 		err.feedEntity = entity
 		throw err
 	}
+	const processFeedMessage = (msg) => {
+		if (msg.header.gtfs_realtime_version !== '2.0') {
+			const err = new Error('FeedMessage GTFS-RT 2.0')
+			err.feedMessage = msg
+			throw err
+		}
+		if (msg.header.incrementality !== DIFFERENTIAL) {
+			const err = new Error('FeedMessage must be DIFFERENTIAL')
+			err.feedMessage = msg
+			throw err
+		}
+		for (const entity of msg.entity) {
+			processFeedEntity(entity)
+		}
+	}
 
 	let feedMessage = null
 	const asFeedMessage = () => {
@@ -63,13 +81,13 @@ const gtfsRtAsDump = (opt = {}) => {
 
 	const out = new Writable({
 		objectMode: true,
-		write: (entity, _, cb) => {
-			write(entity)
+		write: (feedMsg, _, cb) => {
+			processFeedMessage(feedMsg)
 			out.emit('change')
 			cb(null)
 		},
 		writev: (chunks, cb) => {
-			for (const {chunk: entity} of chunks) write(entity)
+			for (const {chunk: feedMsg} of chunks) processFeedMessage(feedMsg)
 			out.emit('change')
 			cb(null)
 		},
