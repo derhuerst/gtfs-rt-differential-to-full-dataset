@@ -16,6 +16,7 @@ const bufEqual = (actual, expected, msg = undefined) => {
 
 bufEqual(encodeField(1, 2, 123456), Buffer.from([10, 192, 196, 7]))
 
+console.info('1..1')
 
 const ttl = 5 * 60 * 1000 // 5 minutes
 const timestamp = () => 1
@@ -118,5 +119,7 @@ bf3051a0c08c4ffffff0f10f4c0abf30528001220220c393030303030303536313031\
 			'hex'
 		))
 		ok(Number.isInteger(full.timeModified()), 'invalid full.timeModified()')
+
+		console.info('ok 1 works')
 	}
 )
