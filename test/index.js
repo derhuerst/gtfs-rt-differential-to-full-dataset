@@ -1,6 +1,6 @@
 'use strict'
 
-const {strictEqual} = require('assert')
+const {strictEqual, ok} = require('assert')
 const {FeedHeader, FeedMessage} = require('gtfs-rt-bindings')
 const pump = require('pump')
 const {createReadStream} = require('fs')
@@ -83,6 +83,12 @@ feedMsgEqual(store, [])
 
 
 const full = toFullDataset({ttl, timestamp})
+
+let changeEmitted = false
+full.once('change', () => {
+	changeEmitted = true
+})
+
 pump(
 	createReadStream(join(__dirname, 'data.ndjson'), {encoding: 'utf8'}),
 	parse(),
@@ -93,6 +99,7 @@ pump(
 			process.exit(1)
 		}
 
+		strictEqual(changeEmitted, true, 'no `change` event emitted')
 		bufEqual(full.asFeedMessage(), Buffer.from(
 			`\
 0a090a03322e301001180112520a0132224d0a1b0a15317c36343436367c317c38367\
@@ -110,5 +117,6 @@ bf3051a0c08c4ffffff0f10f4c0abf30528001220220c393030303030303536313031\
 722e120a0d6666524215666656413a0c3930303030303030353230352002`,
 			'hex'
 		))
+		ok(Number.isInteger(full.timeModified()), 'invalid full.timeModified()')
 	}
 )
