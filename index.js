@@ -26,6 +26,8 @@ const gtfsRtAsDump = (opt = {}) => {
 			return tripSig ? 'trip_update-' + tripSig : null
 		},
 		vehiclePositionSignature: (p) => {
+			const vehicleSig = p.vehicle && p.vehicle.id
+			if (vehicleSig) return 'vehicle_position-' + vehicleSig
 			const tripSig = tripSignature(p)
 			return tripSig ? 'vehicle_position-' + tripSig : null
 		},
