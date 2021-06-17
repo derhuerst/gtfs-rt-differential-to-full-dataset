@@ -11,22 +11,24 @@ const tripSignature = (u) => {
 	// todo: u.trip.route_id + slugg(u.vehicle.label) ?
 	return null
 }
-const tripUpdateSignature = (u) => {
-	const tripSig = tripSignature(u)
-	return tripSig ? 'trip_update-' + tripSig : null
-}
-const vehiclePositionSignature = (u) => {
-	const tripSig = tripSignature(u)
-	return tripSig ? 'vehicle_position-' + tripSig : null
-}
 
 const gtfsRtAsDump = (opt = {}) => {
 	const {
 		ttl,
 		timestamp,
+		tripUpdateSignature,
+		vehiclePositionSignature,
 	} = {
 		ttl: 5 * 60 * 1000, // 5 minutes
 		timestamp: () => Date.now() / 1000 | 0,
+		tripUpdateSignature: (u) => {
+			const tripSig = tripSignature(u)
+			return tripSig ? 'trip_update-' + tripSig : null
+		},
+		vehiclePositionSignature: (p) => {
+			const tripSig = tripSignature(p)
+			return tripSig ? 'vehicle_position-' + tripSig : null
+		},
 		...opt
 	}
 
