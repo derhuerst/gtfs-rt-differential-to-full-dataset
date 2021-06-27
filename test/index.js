@@ -54,7 +54,7 @@ const e3 = {
 
 const header = {
 	gtfs_realtime_version: '2.0',
-	incrementality: FeedHeader.Incrementality.DIFFERENTIAL,
+	incrementality: FeedHeader.Incrementality.FULL_DATASET,
 	timestamp: timestamp(),
 }
 
@@ -103,7 +103,7 @@ pump(
 		strictEqual(changeEmitted, true, 'no `change` event emitted')
 		bufEqual(full.asFeedMessage(), Buffer.from(
 			`\
-0a090a03322e301001180112520a0132224d0a1b0a15317c36343436367c317c38367\
+0a090a03322e301000180112520a0132224d0a1b0a15317c36343436367c317c38367\
 c31323033323032302a026e36421212105520416c742d4d617269656e646f7266120a\
 0d66665042159a9951413a0c39303030303030313231303620011289020a01331a830\
 20a1b0a15317c32353434357c327c38367c31323033323032302a026e331a1a0a0534\
