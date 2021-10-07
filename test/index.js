@@ -43,12 +43,12 @@ const e2 = {
 }
 const e3 = {
 	id: '130',
-	vehicle: {
+	trip_update: {
 		trip: {trip_id: '1|33296|7|86|12032020', route_id: 'u3'},
 		vehicle: {id: null, label: 'U Gleisdreieck'},
-		position: {latitude: 52.498658, longitude: 13.35797},
-		stop_id: '900000056104',
-		current_status: 2
+		stop_time_update: [
+			{stop_id: '900000041101', departure: {delay: 60}},
+		],
 	}
 }
 
@@ -58,28 +58,32 @@ const header = {
 	timestamp: timestamp(),
 }
 
-const feedMsgEqual = (store, entities) => {
+const feedMsgEqual = (store, entities, testName) => {
 	const actual = store.asFeedMessage()
 	const expected = FeedMessage.encode({header, entity: entities}).finish()
-	bufEqual(actual, expected)
+	bufEqual(actual, expected, testName + ': encoded feed should be equal')
 }
 
 const store = createEntitiesStore(ttl, timestamp)
+feedMsgEqual(store, [], 'init')
+
 store.put('foo', e1)
+feedMsgEqual(store, [e1], 'after put(foo)')
+
 store.put('bar', e2)
-feedMsgEqual(store, [e1, e2])
+feedMsgEqual(store, [e1, e2], 'after put(bar)')
 
 store.put('baz', e3)
-feedMsgEqual(store, [e1, e2, e3])
+feedMsgEqual(store, [e1, e2, e3], 'after put(baz)')
 
 store.put('foo', e3)
-feedMsgEqual(store, [e2, e3, e3])
+feedMsgEqual(store, [e2, e3, e3], 'after put(foo)')
 
 store.del('bar')
-feedMsgEqual(store, [e3, e3])
+feedMsgEqual(store, [e3, e3], 'after del(bar)')
 
 store.flush()
-feedMsgEqual(store, [])
+feedMsgEqual(store, [], 'after flush()')
 
 
 
