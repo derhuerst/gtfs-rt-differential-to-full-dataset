@@ -10,7 +10,10 @@ const createEntitiesStore = require('../lib/entities-store')
 const toFullDataset = require('..')
 const {encodeField} = createEntitiesStore
 
+const delay = ms => new Promise(r => setTimeout(r, ms))
+
 const bufEqual = (actual, expected, msg = undefined) => {
+	// console.error('bufEqual', actual, expected)
 	strictEqual(actual.toString('hex'), expected.toString('hex'), msg)
 }
 
@@ -28,7 +31,8 @@ const e1 = {
 		vehicle: {id: null, label: 'S+U Warschauer Str.'},
 		position: {latitude: 52.531513, longitude: 13.38741},
 		stop_id: '900000007104',
-		current_status: 2
+		current_status: 2,
+		timestamp: 1634026310, // 2021-10-12T10:11:50+02:00
 	}
 }
 const e2 = {
@@ -38,7 +42,8 @@ const e2 = {
 		vehicle: {id: null, label: 'Sonnenallee/Baumschulenstr.'},
 		position: {latitude: 52.497561, longitude: 13.394512},
 		stop_id: '900000012152',
-		current_status: 2
+		current_status: 2,
+		timestamp: 1634026290, // 2021-10-12T10:11:30+02:00
 	}
 }
 const e3 = {
@@ -49,41 +54,50 @@ const e3 = {
 		stop_time_update: [
 			{stop_id: '900000041101', departure: {delay: 60}},
 		],
+		timestamp: 1634026320, // 2021-10-12T10:12:00+02:00
 	}
 }
 
 const header = {
 	gtfs_realtime_version: '2.0',
 	incrementality: FeedHeader.Incrementality.FULL_DATASET,
-	timestamp: timestamp(),
 }
 
-const feedMsgEqual = (store, entities, testName) => {
+const feedMsgEqual = (store, entities, feedTimestamp, testName) => {
 	const actual = store.asFeedMessage()
-	const expected = FeedMessage.encode({header, entity: entities}).finish()
+	const expected = FeedMessage.encode({
+		header: {
+			...header,
+			timestamp: feedTimestamp,
+		},
+		entity: entities,
+	}).finish()
 	bufEqual(actual, expected, testName + ': encoded feed should be equal')
+
+	const feedMsg = FeedMessage.toObject(FeedMessage.decode(actual))
+	strictEqual(+feedMsg.header.timestamp, feedTimestamp, testName + ': feed timestamp should be equal')
 }
 
 const store = createEntitiesStore(ttl, timestamp)
-feedMsgEqual(store, [], 'init')
+feedMsgEqual(store, [], timestamp(), 'init')
 
 store.put('foo', e1)
-feedMsgEqual(store, [e1], 'after put(foo)')
+feedMsgEqual(store, [e1], e1.vehicle.timestamp, 'after put(foo)')
 
 store.put('bar', e2)
-feedMsgEqual(store, [e1, e2], 'after put(bar)')
+feedMsgEqual(store, [e1, e2], e1.vehicle.timestamp, 'after put(bar)')
 
 store.put('baz', e3)
-feedMsgEqual(store, [e1, e2, e3], 'after put(baz)')
+feedMsgEqual(store, [e1, e2, e3], e3.trip_update.timestamp, 'after put(baz)')
 
 store.put('foo', e3)
-feedMsgEqual(store, [e2, e3, e3], 'after put(foo)')
+feedMsgEqual(store, [e2, e3, e3], e3.trip_update.timestamp, 'after put(foo)')
 
 store.del('bar')
-feedMsgEqual(store, [e3, e3], 'after del(bar)')
+feedMsgEqual(store, [e3, e3], e3.trip_update.timestamp, 'after del(bar)')
 
 store.flush()
-feedMsgEqual(store, [], 'after flush()')
+feedMsgEqual(store, [], timestamp(), 'after flush()') // todo: this is flaky
 
 
 
