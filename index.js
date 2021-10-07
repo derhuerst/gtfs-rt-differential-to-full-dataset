@@ -35,7 +35,6 @@ const gtfsRtAsDump = (opt = {}) => {
 	}
 
 	const entitiesStore = createEntitiesStore(ttl, timestamp)
-	let timeModified = Date.now()
 
 	const write = (entity) => {
 		// If the entity is not being deleted, exactly one of 'trip_update', 'vehicle' and 'alert' fields should be populated.
@@ -50,7 +49,6 @@ const gtfsRtAsDump = (opt = {}) => {
 
 		if (sig !== null) {
 			entitiesStore.put(sig, entity)
-			timeModified = Date.now()
 			return;
 		}
 		const err = new Error('invalid/unsupported kind of FeedEntity')
@@ -84,7 +82,7 @@ const gtfsRtAsDump = (opt = {}) => {
 
 	out.asFeedMessage = asFeedMessage
 	// todo: let asFeedMessage return this
-	out.timeModified = () => timeModified
+	out.timeModified = () => entitiesStore.getTimestamp()
 	return out
 }
 

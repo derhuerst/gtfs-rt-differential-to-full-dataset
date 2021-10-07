@@ -1,6 +1,6 @@
 'use strict'
 
-const {strictEqual, ok} = require('assert')
+const {strictEqual} = require('assert')
 const {FeedHeader, FeedMessage} = require('gtfs-rt-bindings')
 const pump = require('pump')
 const {createReadStream} = require('fs')
@@ -76,6 +76,7 @@ const feedMsgEqual = (store, entities, feedTimestamp, testName) => {
 
 	const feedMsg = FeedMessage.toObject(FeedMessage.decode(actual))
 	strictEqual(+feedMsg.header.timestamp, feedTimestamp, testName + ': feed timestamp should be equal')
+	strictEqual(store.getTimestamp(), feedTimestamp, testName + ': store.getTimestamp() should be correct')
 }
 
 const store = createEntitiesStore(ttl, timestamp)
@@ -139,7 +140,7 @@ fffffffff0110c0bfabf3051a1108c4ffffffffffffffff0110c0bfabf305220c3930\
 206427573203132`,
 			'hex'
 		))
-		ok(Number.isInteger(full.timeModified()), 'invalid full.timeModified()')
+		strictEqual(full.timeModified(), timestamp(), 'invalid full.timeModified()')
 
 		console.info('ok 1 works')
 	}
