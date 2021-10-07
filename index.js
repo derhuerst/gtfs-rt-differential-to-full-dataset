@@ -1,7 +1,10 @@
 'use strict'
 
+const {FeedHeader} = require('gtfs-rt-bindings')
 const {Writable} = require('stream')
 const createEntitiesStore = require('./lib/entities-store')
+
+const {DIFFERENTIAL} = FeedHeader.Incrementality
 
 const tripSignature = (u) => {
 	if (u.trip.trip_id) return u.trip.trip_id
@@ -36,24 +39,37 @@ const gtfsRtAsDump = (opt = {}) => {
 
 	const entitiesStore = createEntitiesStore(ttl, timestamp)
 
-	const write = (entity) => {
-		// If the entity is not being deleted, exactly one of 'trip_update', 'vehicle' and 'alert' fields should be populated.
-		// https://developers.google.com/transit/gtfs-realtime/reference#message-feedentity
-		let sig = null
-		if (entity.trip_update) {
-			sig = tripUpdateSignature(entity.trip_update)
-		} else if (entity.vehicle) {
-			sig = vehiclePositionSignature(entity.vehicle)
+	const write = (msg) => {
+		if (msg.header.gtfs_realtime_version !== '2.0') {
+			const err = new Error('FeedMessage GTFS-RT 2.0')
+			err.feedMessage = msg
+			throw err
 		}
-		// todo: alert
+		if (msg.header.incrementality !== DIFFERENTIAL) {
+			const err = new Error('FeedMessage must be DIFFERENTIAL')
+			err.feedMessage = msg
+			throw err
+		}
 
-		if (sig !== null) {
-			entitiesStore.put(sig, entity)
-			return;
+		for (const entity of msg.entity) {
+			// If the entity is not being deleted, exactly one of 'trip_update', 'vehicle' and 'alert' fields should be populated.
+			// https://developers.google.com/transit/gtfs-realtime/reference#message-feedentity
+			let sig = null
+			if (entity.trip_update) {
+				sig = tripUpdateSignature(entity.trip_update)
+			} else if (entity.vehicle) {
+				sig = vehiclePositionSignature(entity.vehicle)
+			}
+			// todo: alert, see #1
+
+			if (sig !== null) {
+				entitiesStore.put(sig, entity)
+				continue
+			}
+			const err = new Error('invalid/unsupported kind of FeedEntity')
+			err.feedEntity = entity
+			throw err
 		}
-		const err = new Error('invalid/unsupported kind of FeedEntity')
-		err.feedEntity = entity
-		throw err
 	}
 
 	let feedMessage = null
@@ -63,13 +79,13 @@ const gtfsRtAsDump = (opt = {}) => {
 
 	const out = new Writable({
 		objectMode: true,
-		write: (entity, _, cb) => {
-			write(entity)
+		write: (feedMsg, _, cb) => {
+			write(feedMsg)
 			out.emit('change')
 			cb(null)
 		},
 		writev: (chunks, cb) => {
-			for (const {chunk: entity} of chunks) write(entity)
+			for (const {chunk: feedMsg} of chunks) write(feedMsg)
 			out.emit('change')
 			cb(null)
 		},
