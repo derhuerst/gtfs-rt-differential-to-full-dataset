@@ -97,6 +97,8 @@ feedMsgEqual(store, [e2, e3, e3], e3.trip_update.timestamp, 'after put(foo)')
 store.del('bar')
 feedMsgEqual(store, [e3, e3], e3.trip_update.timestamp, 'after del(bar)')
 
+strictEqual(store.nrOfEntities(), 2, 'after del(bar): nrOfEntities()')
+
 store.flush()
 feedMsgEqual(store, [], timestamp(), 'after flush()') // todo: this is flaky
 

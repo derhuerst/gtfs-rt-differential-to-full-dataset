@@ -83,6 +83,7 @@ const gtfsRtAsDump = (opt = {}) => {
 	out.asFeedMessage = asFeedMessage
 	// todo: let asFeedMessage return this
 	out.timeModified = () => entitiesStore.getTimestamp()
+	out.nrOfEntities = entitiesStore.nrOfEntities
 	return out
 }
 

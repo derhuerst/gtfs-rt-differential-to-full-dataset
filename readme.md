@@ -36,7 +36,9 @@ setInterval(() => {
 
 `toFull` will be a [writable stream](https://nodejs.org/api/stream.html#stream_class_stream_writable) in [object mode](https://nodejs.org/api/stream.html#stream_object_mode) that expects JS objects in the [`FeedEntity`](https://developers.google.com/transit/gtfs-realtime/reference/#message-feedentity) structure/format.
 
-`toFull.asFeedMessage()` returns a [protocol-buffer-encoded](https://developers.google.com/protocol-buffers/docs/overview) [`FeedMessage`](https://developers.google.com/transit/gtfs-realtime/reference/#message-feedmessage) with all relevant `FeedEntity` that have been written into `toFull` so far.
+`toFull.asFeedMessage()` returns a [protocol-buffer-encoded](https://developers.google.com/protocol-buffers/docs/overview) [`FeedMessage`](https://developers.google.com/transit/gtfs-realtime/reference/#message-feedmessage) with all relevant `FeedEntity`s that have been written into `toFull` so far.
+
+`toFull.nrOfEntities()` returns the number of `FeedEntity`s that are currently part of the `FeedMessage`.
 
 
 ## Contributing
