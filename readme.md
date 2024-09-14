@@ -1,6 +1,6 @@
 # gtfs-rt-differential-to-full-dataset
 
-**Transform a continuous [GTFS Realtime (GTFS-RT)](https://developers.google.com/transit/gtfs-realtime/) stream of [`DIFFERENTIAL` incrementality](https://developers.google.com/transit/gtfs-realtime/reference/#enum-incrementality) data into a [`FULL_DATASET`](https://developers.google.com/transit/gtfs-realtime/reference/#enum-incrementality) dump.**
+**Transform a continuous [GTFS Realtime (GTFS-RT)](https://developers.google.com/transit/gtfs-realtime/) stream of [`DIFFERENTIAL` incrementality](https://gtfs.org/documentation/realtime/reference/#enum-incrementality) data into a [`FULL_DATASET`](https://gtfs.org/documentation/realtime/reference/#enum-incrementality) dump.**
 
 *Note:* Right now, this package *does not* obey the [draft `DIFFERENTIAL` spec](https://github.com/google/transit/issues/84) exactly. See below and [#1](https://github.com/derhuerst/gtfs-rt-differential-to-full-dataset/issues/1) for details.
 
@@ -34,9 +34,9 @@ setInterval(() => {
 }, 5000)
 ```
 
-`toFull` will be a [writable stream](https://nodejs.org/api/stream.html#stream_class_stream_writable) in [object mode](https://nodejs.org/api/stream.html#stream_object_mode) that expects JS objects in the [`FeedEntity`](https://developers.google.com/transit/gtfs-realtime/reference/#message-feedentity) structure/format.
+`toFull` will be a [writable stream](https://nodejs.org/api/stream.html#stream_class_stream_writable) in [object mode](https://nodejs.org/api/stream.html#stream_object_mode) that expects JS objects in the [`FeedEntity`](https://gtfs.org/documentation/realtime/reference/#message-feedentity) structure/format.
 
-`toFull.asFeedMessage()` returns a [protocol-buffer-encoded](https://developers.google.com/protocol-buffers/docs/overview) [`FeedMessage`](https://developers.google.com/transit/gtfs-realtime/reference/#message-feedmessage) with all relevant `FeedEntity`s that have been written into `toFull` so far.
+`toFull.asFeedMessage()` returns a [protocol-buffer-encoded](https://protobuf.dev) [`FeedMessage`](https://gtfs.org/documentation/realtime/reference/#message-feedmessage) with all relevant `FeedEntity`s that have been written into `toFull` so far.
 
 `toFull.nrOfEntities()` returns the number of `FeedEntity`s that are currently part of the `FeedMessage`.
 
