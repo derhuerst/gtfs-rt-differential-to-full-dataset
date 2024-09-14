@@ -6,6 +6,12 @@ const createEntitiesStore = require('./lib/entities-store')
 
 const {DIFFERENTIAL} = FeedHeader.Incrementality
 
+class UnsupportedFeedMessageError extends Error {}
+
+class UnsupportedKindOfFeedEntityError extends Error {}
+
+class FeedEntitySignatureError extends Error {}
+
 const tripSignature = (u) => {
 	if (u.trip.trip_id) return u.trip.trip_id
 	if (u.trip.route_id && u.vehicle.id) {
@@ -47,25 +53,30 @@ const gtfsRtDifferentialToFullDataset = (opt = {}) => {
 			sig = tripUpdateSignature(entity.trip_update)
 		} else if (entity.vehicle) {
 			sig = vehiclePositionSignature(entity.vehicle)
+		} else if (entity.alert) {
+			// todo: see #1
+		} else {
+			const err = new UnsupportedKindOfFeedEntityError('invalid/unsupported kind of FeedEntity')
+			err.feedEntity = entity
+			throw err
 		}
-		// todo: alert, see #1
 
 		if (sig !== null) {
 			entitiesStore.put(sig, entity)
 			return;
 		}
-		const err = new Error('invalid/unsupported kind of FeedEntity')
+		const err = new FeedEntitySignatureError('could not determine FeedEntity signature')
 		err.feedEntity = entity
 		throw err
 	}
 	const processFeedMessage = (msg) => {
 		if (msg.header.gtfs_realtime_version !== '2.0') {
-			const err = new Error('FeedMessage GTFS-RT 2.0')
+			const err = new UnsupportedFeedMessageError('FeedMessage GTFS-RT version must be 2.0')
 			err.feedMessage = msg
 			throw err
 		}
 		if (msg.header.incrementality !== DIFFERENTIAL) {
-			const err = new Error('FeedMessage must be DIFFERENTIAL')
+			const err = new UnsupportedFeedMessageError('FeedMessage must be DIFFERENTIAL')
 			err.feedMessage = msg
 			throw err
 		}
@@ -102,9 +113,14 @@ const gtfsRtDifferentialToFullDataset = (opt = {}) => {
 	// todo: let asFeedMessage return this
 	out.timeModified = () => entitiesStore.getTimestamp()
 	out.nrOfEntities = entitiesStore.nrOfEntities
+
+	// todo [breaking]: change return value to a regular object
 	return out
 }
 
 module.exports = {
 	gtfsRtDifferentialToFullDataset,
+	UnsupportedFeedMessageError,
+	UnsupportedKindOfFeedEntityError,
+	FeedEntitySignatureError,
 }
