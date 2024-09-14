@@ -21,9 +21,11 @@ npm install gtfs-rt-differential-to-full-dataset
 ## Usage
 
 ```js
-const toFullDataset = require('gtfs-rt-differential-to-full-dataset')
+const {
+	gtfsRtDifferentialToFullDataset,
+} = require('gtfs-rt-differential-to-full-dataset')
 
-const toFull = toFullDataset({
+const toFull = gtfsRtDifferentialToFullDataset({
 	ttl: 2 * 60 * 1000, // 2 minutes
 })
 toFull.on('error')

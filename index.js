@@ -15,7 +15,7 @@ const tripSignature = (u) => {
 	return null
 }
 
-const gtfsRtAsDump = (opt = {}) => {
+const gtfsRtDifferentialToFullDataset = (opt = {}) => {
 	const {
 		ttl,
 		timestamp,
@@ -105,4 +105,6 @@ const gtfsRtAsDump = (opt = {}) => {
 	return out
 }
 
-module.exports = gtfsRtAsDump
+module.exports = {
+	gtfsRtDifferentialToFullDataset,
+}

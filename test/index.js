@@ -7,7 +7,9 @@ const {createReadStream} = require('fs')
 const {join} = require('path')
 const {parse} = require('ndjson')
 const createEntitiesStore = require('../lib/entities-store')
-const toFullDataset = require('..')
+const {
+	gtfsRtDifferentialToFullDataset,
+} = require('..')
 const {encodeField} = createEntitiesStore
 
 const delay = ms => new Promise(r => setTimeout(r, ms))
@@ -104,7 +106,7 @@ feedMsgEqual(store, [], timestamp(), 'after flush()') // todo: this is flaky
 
 
 
-const full = toFullDataset({ttl, timestamp})
+const full = gtfsRtDifferentialToFullDataset({ttl, timestamp})
 
 let changeEmitted = false
 full.once('change', () => {
