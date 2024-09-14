@@ -54,14 +54,26 @@ const defaultVehiclePositionExpiresAt = (vP, getNow, defaultTtl) => {
 	return getNow() + defaultTtl
 }
 
+const defaultAlertExpiresAt = (alert, getNow, defaultTtl) => {
+	if (alert.active_period) {
+		return Number.isInteger(alert.active_period.end)
+			? alert.active_period.end
+			: alert.active_period.start + defaultTtl
+	}
+	// todo: fall back to alert.informed_entity.trip.start_{date,time} if available?
+	return getNow() + defaultTtl
+}
+
 const gtfsRtDifferentialToFullDataset = (opt = {}) => {
 	const {
 		ttl: defaultTtlMs,
 		timestamp: getNow,
 		tripUpdateSignature,
 		vehiclePositionSignature,
+		alertSignature,
 		tripUpdateExpiresAt,
 		vehiclePositionExpiresAt,
+		alertExpiresAt,
 	} = {
 		ttl: 5 * 60 * 1000, // 5 minutes
 		timestamp: () => Date.now() / 1000 | 0,
@@ -75,8 +87,16 @@ const gtfsRtDifferentialToFullDataset = (opt = {}) => {
 			const tripSig = tripSignature(p)
 			return tripSig ? 'vehicle_position-' + tripSig : null
 		},
+		alertSignature: (a) => {
+			// todo: see #1
+			// // todo: sort informed entities & their keys
+			// const informed = JSON.stringify(a.informed_entity.map(ie => Object.entries(ie).filter((k, v) => v !== null)))
+			// // todo: also use .cause, .effect, .url & .severity_level?
+			return null
+		},
 		tripUpdateExpiresAt: defaultTripUpdateExpiresAt,
 		vehiclePositionExpiresAt: defaultVehiclePositionExpiresAt,
+		alertExpiresAt: defaultAlertExpiresAt,
 		...opt
 	}
 	const defaultTtl = Math.round(defaultTtlMs / 1000)
@@ -93,7 +113,11 @@ const gtfsRtDifferentialToFullDataset = (opt = {}) => {
 			Number.isInteger(_expiresAt, 'vehiclePositionExpiresAt() must return an integer or null')
 			expiresAt = Math.max(expiresAt, _expiresAt)
 		}
-		// todo: support Alerts
+		if (entity.alert) {
+			const _expiresAt = alertExpiresAt(entity.alert, getNow, defaultTtl)
+			Number.isInteger(_expiresAt, 'alertExpiresAt() must return an integer or null')
+			expiresAt = Math.max(expiresAt, _expiresAt)
+		}
 		return expiresAt === -1
 			? getNow() + defaultTtl
 			: expiresAt
@@ -110,7 +134,7 @@ const gtfsRtDifferentialToFullDataset = (opt = {}) => {
 		} else if (entity.vehicle) {
 			sig = vehiclePositionSignature(entity.vehicle)
 		} else if (entity.alert) {
-			// todo: see #1
+			sig = alertSignature(entity.alert)
 		} else {
 			const err = new UnsupportedKindOfFeedEntityError('invalid/unsupported kind of FeedEntity')
 			err.feedEntity = entity
