@@ -21,7 +21,7 @@
 	"bugs": "https://github.com/derhuerst/gtfs-rt-differential-to-full-dataset/issues",
 	"license": "ISC",
 	"engines": {
-		"node": ">=14"
+		"node": ">=20"
 	},
 	"dependencies": {
 		"gtfs-rt-bindings": "^4.0.0",
