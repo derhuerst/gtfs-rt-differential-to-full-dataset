@@ -93,19 +93,19 @@ const feedMsgEqual = (store, entities, feedTimestamp, testName) => {
 	strictEqual(store.getTimestamp(), feedTimestamp, testName + ': store.getTimestamp() should be correct')
 }
 
-const store = createEntitiesStore(ttl, timestamp)
+const store = createEntitiesStore(timestamp)
 feedMsgEqual(store, [], timestamp(), 'init')
 
-store.put('foo', e1)
+store.put('foo', e1, timestamp() + ttl)
 feedMsgEqual(store, [e1], e1.vehicle.timestamp, 'after put(foo)')
 
-store.put('bar', e2)
+store.put('bar', e2, timestamp() + ttl)
 feedMsgEqual(store, [e1, e2], e1.vehicle.timestamp, 'after put(bar)')
 
-store.put('baz', e3)
+store.put('baz', e3, timestamp() + ttl)
 feedMsgEqual(store, [e1, e2, e3], e3.trip_update.timestamp, 'after put(baz)')
 
-store.put('foo', e3)
+store.put('foo', e3, timestamp() + ttl)
 feedMsgEqual(store, [e2, e3, e3], e3.trip_update.timestamp, 'after put(foo)')
 
 store.del('bar')

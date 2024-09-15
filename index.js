@@ -25,8 +25,8 @@ const tripSignature = (u) => {
 
 const gtfsRtDifferentialToFullDataset = (opt = {}) => {
 	const {
-		ttl,
-		timestamp,
+		ttl: defaultTtlMs,
+		timestamp: getNow,
 		tripUpdateSignature,
 		vehiclePositionSignature,
 	} = {
@@ -44,8 +44,13 @@ const gtfsRtDifferentialToFullDataset = (opt = {}) => {
 		},
 		...opt
 	}
+	const defaultTtl = Math.round(defaultTtlMs / 1000)
 
-	const entitiesStore = createEntitiesStore(ttl, timestamp)
+	const entityExpiresAt = (entity) => {
+		return getNow() + defaultTtl
+	}
+
+	const entitiesStore = createEntitiesStore(getNow)
 
 	const processFeedEntity = (entity) => {
 		// If the entity is not being deleted, exactly one of 'trip_update', 'vehicle' and 'alert' fields should be populated.
@@ -64,7 +69,8 @@ const gtfsRtDifferentialToFullDataset = (opt = {}) => {
 		}
 
 		if (sig !== null) {
-			entitiesStore.put(sig, entity)
+			const expiresAt = entityExpiresAt(entity)
+			entitiesStore.put(sig, entity, expiresAt)
 			return;
 		}
 		const err = new FeedEntitySignatureError('could not determine FeedEntity signature')
