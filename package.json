@@ -1,7 +1,7 @@
 {
 	"name": "gtfs-rt-differential-to-full-dataset",
 	"description": "Transform a differential GTFS Realtime feed into a full dataset/dump.",
-	"version": "2.1.2",
+	"version": "3.0.0-alpha.0",
 	"main": "index.js",
 	"files": [
 		"index.js",
@@ -16,12 +16,12 @@
 		"differential"
 	],
 	"author": "Jannis R <mail@jannisr.de>",
-	"homepage": "https://github.com/derhuerst/gtfs-rt-differential-to-full-dataset",
+	"homepage": "https://github.com/derhuerst/gtfs-rt-differential-to-full-dataset/tree/3.0.0-alpha.0",
 	"repository": "derhuerst/gtfs-rt-differential-to-full-dataset",
 	"bugs": "https://github.com/derhuerst/gtfs-rt-differential-to-full-dataset/issues",
 	"license": "ISC",
 	"engines": {
-		"node": ">=14"
+		"node": ">=20"
 	},
 	"dependencies": {
 		"gtfs-rt-bindings": "^4.0.0",
