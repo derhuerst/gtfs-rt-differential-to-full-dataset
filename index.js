@@ -13,7 +13,9 @@ class UnsupportedKindOfFeedEntityError extends Error {}
 class FeedEntitySignatureError extends Error {}
 
 const tripSignature = (u) => {
-	if (u.trip.trip_id) return u.trip.trip_id
+	if (u.trip.trip_id && u.trip.start_date) {
+		return u.trip.trip_id + '-' + u.trip.start_date
+	}
 	if (u.trip.route_id && u.vehicle.id) {
 		return u.trip.route_id + '-' + u.vehicle.id
 	}
