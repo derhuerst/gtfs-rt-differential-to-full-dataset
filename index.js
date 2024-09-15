@@ -23,12 +23,45 @@ const tripSignature = (u) => {
 	return null
 }
 
+const defaultTripUpdateExpiresAt = (tU, getNow, defaultTtl) => {
+	let maxArrDep = -1
+	if (Array.isArray(tU.stop_time_update)) {
+		for (const sTU of tU.stop_time_update) {
+			if (sTU.arrival && Number.isInteger(sTU.arrival.time)) {
+				maxArrDep = Math.max(maxArrDep, sTU.arrival.time)
+			}
+			if (sTU.departure && Number.isInteger(sTU.departure.time)) {
+				maxArrDep = Math.max(maxArrDep, sTU.departure.time)
+			}
+		}
+	}
+	if (maxArrDep !== -1) {
+		return maxArrDep + defaultTtl
+	}
+
+	// todo: fall back to tU.trip.start_{date,time} + buffer if available? – handle canceled trips without sTUs!
+	if (Number.isInteger(tU.timestamp)) {
+		return tU.timestamp + defaultTtl
+	}
+	return getNow() + defaultTtl
+}
+
+const defaultVehiclePositionExpiresAt = (vP, getNow, defaultTtl) => {
+	// todo: first use vP.trip.start_{date,time} + buffer if available?
+	if (Number.isInteger(vP.timestamp)) {
+		return vP.timestamp + defaultTtl
+	}
+	return getNow() + defaultTtl
+}
+
 const gtfsRtDifferentialToFullDataset = (opt = {}) => {
 	const {
 		ttl: defaultTtlMs,
 		timestamp: getNow,
 		tripUpdateSignature,
 		vehiclePositionSignature,
+		tripUpdateExpiresAt,
+		vehiclePositionExpiresAt,
 	} = {
 		ttl: 5 * 60 * 1000, // 5 minutes
 		timestamp: () => Date.now() / 1000 | 0,
@@ -42,12 +75,28 @@ const gtfsRtDifferentialToFullDataset = (opt = {}) => {
 			const tripSig = tripSignature(p)
 			return tripSig ? 'vehicle_position-' + tripSig : null
 		},
+		tripUpdateExpiresAt: defaultTripUpdateExpiresAt,
+		vehiclePositionExpiresAt: defaultVehiclePositionExpiresAt,
 		...opt
 	}
 	const defaultTtl = Math.round(defaultTtlMs / 1000)
 
 	const entityExpiresAt = (entity) => {
-		return getNow() + defaultTtl
+		let expiresAt = -1
+		if (entity.trip_update) {
+			const _expiresAt = tripUpdateExpiresAt(entity.trip_update, getNow, defaultTtl)
+			Number.isInteger(_expiresAt, 'tripUpdateExpiresAt() must return an integer or null')
+			expiresAt = Math.max(expiresAt, _expiresAt)
+		}
+		if (entity.vehicle) {
+			const _expiresAt = vehiclePositionExpiresAt(entity.vehicle, getNow, defaultTtl)
+			Number.isInteger(_expiresAt, 'vehiclePositionExpiresAt() must return an integer or null')
+			expiresAt = Math.max(expiresAt, _expiresAt)
+		}
+		// todo: support Alerts
+		return expiresAt === -1
+			? getNow() + defaultTtl
+			: expiresAt
 	}
 
 	const entitiesStore = createEntitiesStore(getNow)
@@ -131,4 +180,7 @@ module.exports = {
 	UnsupportedFeedMessageError,
 	UnsupportedKindOfFeedEntityError,
 	FeedEntitySignatureError,
+	defaultTripUpdateExpiresAt,
+	defaultVehiclePositionExpiresAt,
+	defaultAlertExpiresAt,
 }
