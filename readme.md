@@ -21,22 +21,24 @@ npm install gtfs-rt-differential-to-full-dataset
 ## Usage
 
 ```js
-const toFullDataset = require('gtfs-rt-differential-to-full-dataset')
+const {
+	gtfsRtDifferentialToFullDataset,
+} = require('gtfs-rt-differential-to-full-dataset')
 
-const toFull = toFullDataset({
+const toFull = gtfsRtDifferentialToFullDataset({
 	ttl: 2 * 60 * 1000, // 2 minutes
 })
 toFull.on('error')
 
-differentialFeedEntities.pipe(toFull)
+differentialFeedMessages.pipe(toFull)
 setInterval(() => {
 	console.log(toFull.asFeedMessage())
 }, 5000)
 ```
 
-`toFull` will be a [writable stream](https://nodejs.org/api/stream.html#stream_class_stream_writable) in [object mode](https://nodejs.org/api/stream.html#stream_object_mode) that expects JS objects in the [`FeedEntity`](https://gtfs.org/documentation/realtime/reference/#message-feedentity) structure/format.
+`toFull` will be a [writable stream](https://nodejs.org/api/stream.html#stream_class_stream_writable) in [object mode](https://nodejs.org/api/stream.html#stream_object_mode) that expects JS objects in the [`FeedMessage`](https://gtfs.org/documentation/realtime/reference/#message-feedmessage) structure/format.
 
-`toFull.asFeedMessage()` returns a [protocol-buffer-encoded](https://protobuf.dev) [`FeedMessage`](https://gtfs.org/documentation/realtime/reference/#message-feedmessage) with all relevant `FeedEntity`s that have been written into `toFull` so far.
+`toFull.asFeedMessage()` returns a [protocol-buffer-encoded](https://protobuf.dev) `FULL_DATASET`-mode [`FeedMessage`](https://gtfs.org/documentation/realtime/reference/#message-feedmessage) with all `FeedEntity`s from the `DIFFERENTIAL`-mode `FeedMessage`s that have been written into `toFull` so far, as long as they're still relevant.
 
 `toFull.nrOfEntities()` returns the number of `FeedEntity`s that are currently part of the `FeedMessage`.
 

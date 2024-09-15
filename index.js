@@ -1,10 +1,21 @@
 'use strict'
 
+const {FeedHeader} = require('gtfs-rt-bindings')
 const {Writable} = require('stream')
 const createEntitiesStore = require('./lib/entities-store')
 
+const {DIFFERENTIAL} = FeedHeader.Incrementality
+
+class UnsupportedFeedMessageError extends Error {}
+
+class UnsupportedKindOfFeedEntityError extends Error {}
+
+class FeedEntitySignatureError extends Error {}
+
 const tripSignature = (u) => {
-	if (u.trip.trip_id) return u.trip.trip_id
+	if (u.trip.trip_id && u.trip.start_date) {
+		return u.trip.trip_id + '-' + u.trip.start_date
+	}
 	if (u.trip.route_id && u.vehicle.id) {
 		return u.trip.route_id + '-' + u.vehicle.id
 	}
@@ -12,7 +23,7 @@ const tripSignature = (u) => {
 	return null
 }
 
-const gtfsRtAsDump = (opt = {}) => {
+const gtfsRtDifferentialToFullDataset = (opt = {}) => {
 	const {
 		ttl,
 		timestamp,
@@ -36,7 +47,7 @@ const gtfsRtAsDump = (opt = {}) => {
 
 	const entitiesStore = createEntitiesStore(ttl, timestamp)
 
-	const write = (entity) => {
+	const processFeedEntity = (entity) => {
 		// If the entity is not being deleted, exactly one of 'trip_update', 'vehicle' and 'alert' fields should be populated.
 		// https://developers.google.com/transit/gtfs-realtime/reference#message-feedentity
 		let sig = null
@@ -44,16 +55,36 @@ const gtfsRtAsDump = (opt = {}) => {
 			sig = tripUpdateSignature(entity.trip_update)
 		} else if (entity.vehicle) {
 			sig = vehiclePositionSignature(entity.vehicle)
+		} else if (entity.alert) {
+			// todo: see #1
+		} else {
+			const err = new UnsupportedKindOfFeedEntityError('invalid/unsupported kind of FeedEntity')
+			err.feedEntity = entity
+			throw err
 		}
-		// todo: alert
 
 		if (sig !== null) {
 			entitiesStore.put(sig, entity)
 			return;
 		}
-		const err = new Error('invalid/unsupported kind of FeedEntity')
+		const err = new FeedEntitySignatureError('could not determine FeedEntity signature')
 		err.feedEntity = entity
 		throw err
+	}
+	const processFeedMessage = (msg) => {
+		if (msg.header.gtfs_realtime_version !== '2.0') {
+			const err = new UnsupportedFeedMessageError('FeedMessage GTFS-RT version must be 2.0')
+			err.feedMessage = msg
+			throw err
+		}
+		if (msg.header.incrementality !== DIFFERENTIAL) {
+			const err = new UnsupportedFeedMessageError('FeedMessage must be DIFFERENTIAL')
+			err.feedMessage = msg
+			throw err
+		}
+		for (const entity of msg.entity) {
+			processFeedEntity(entity)
+		}
 	}
 
 	let feedMessage = null
@@ -63,13 +94,13 @@ const gtfsRtAsDump = (opt = {}) => {
 
 	const out = new Writable({
 		objectMode: true,
-		write: (entity, _, cb) => {
-			write(entity)
+		write: (feedMsg, _, cb) => {
+			processFeedMessage(feedMsg)
 			out.emit('change')
 			cb(null)
 		},
 		writev: (chunks, cb) => {
-			for (const {chunk: entity} of chunks) write(entity)
+			for (const {chunk: feedMsg} of chunks) processFeedMessage(feedMsg)
 			out.emit('change')
 			cb(null)
 		},
@@ -84,7 +115,14 @@ const gtfsRtAsDump = (opt = {}) => {
 	// todo: let asFeedMessage return this
 	out.timeModified = () => entitiesStore.getTimestamp()
 	out.nrOfEntities = entitiesStore.nrOfEntities
+
+	// todo [breaking]: change return value to a regular object
 	return out
 }
 
-module.exports = gtfsRtAsDump
+module.exports = {
+	gtfsRtDifferentialToFullDataset,
+	UnsupportedFeedMessageError,
+	UnsupportedKindOfFeedEntityError,
+	FeedEntitySignatureError,
+}
