@@ -117,6 +117,21 @@ store.flush()
 feedMsgEqual(store, [], timestamp(), 'after flush()') // todo: this is flaky
 
 
+{
+	let t = 1
+	const timestamp = () => ++t
+
+	const store = createEntitiesStore(timestamp)
+	feedMsgEqual(store, [], t, 'init')
+
+	store.put('foo', e1, t + ttl)
+	store.put('bar', e2, t + ttl)
+	feedMsgEqual(store, [e1, e2], e1.vehicle.timestamp, 'after put(foo) & put(bar)')
+
+	store.flush()
+	feedMsgEqual(store, [], t, 'after flush()')
+}
+
 
 const full = gtfsRtDifferentialToFullDataset({ttl, timestamp})
 
