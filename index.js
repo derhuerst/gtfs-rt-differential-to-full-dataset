@@ -1,10 +1,13 @@
 'use strict'
 
+const createDebug = require('debug')
 const {FeedHeader} = require('gtfs-rt-bindings')
 const {Writable} = require('stream')
 const createEntitiesStore = require('./lib/entities-store')
 
 const {DIFFERENTIAL} = FeedHeader.Incrementality
+
+const debug = createDebug('gtfs-rt-differential-to-full-dataset')
 
 class UnsupportedFeedMessageError extends Error {}
 
@@ -144,6 +147,7 @@ const gtfsRtDifferentialToFullDataset = (opt = {}) => {
 
 		if (sig !== null) {
 			const expiresAt = entityExpiresAt(entity)
+			debug('storing entity', sig, 'expiresAt', expiresAt, 'entity', entity)
 			entitiesStore.put(sig, entity, expiresAt)
 			return;
 		}
