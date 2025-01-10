@@ -26,10 +26,41 @@ const tripSignature = (u) => {
 	return null
 }
 
-const defaultTripUpdateExpiresAt = (tU, getNow, defaultTtl) => {
+const tryParseStartDateTime = (tU, getNow) => {
+	const now = getNow();
+	if (tU.trip && tU.trip.start_date && tU.trip.start_date.length == 8) {
+		const start_date = tU.trip.start_date;
+		const parts = [
+			parseInt(start_date.substring(0,4)) || 0,
+			(parseInt(start_date.substring(4,6)) || 1)-1,
+			parseInt(start_date.substring(6,8)) || 1
+		];
+		if (tU.trip.start_time) {
+			const time = tU.trip.start_time.split(':')
+			if (time.length == 3) {
+				parts.push(parseInt(time[0]) || 0, parseInt(time[1]) || 0, parseInt(time[2]) || 0);
+			}
+		}
+		const parsed = new Date(...parts).getTime()/1000
+		return Math.max(parsed, now)
+	}
+	return now;
+}
+
+const estimateTripEndTime = (tU, getNow, defaultTripDuration) => {
+	return tryParseStartDateTime(tU, getNow) + defaultTripDuration;
+}
+
+const defaultTripUpdateExpiresAt = (tU, getNow, defaultTtl, canceledTtl, fallbackTripDuration) => {
 	let maxArrDep = -1
+	if (tU.trip && tU.trip.schedule_relationship == 3) { // CANCELED
+		maxArrDep = estimateTripEndTime(tU, getNow, fallbackTripDuration) + canceledTtl
+	}
 	if (Array.isArray(tU.stop_time_update)) {
 		for (const sTU of tU.stop_time_update) {
+			if (sTU.schedule_relationship == 1) { // SKIPPED
+				maxArrDep = Math.max(maxArrDep, estimateTripEndTime(tU, getNow, fallbackTripDuration) + canceledTtl)
+			}
 			if (sTU.arrival && Number.isInteger(sTU.arrival.time)) {
 				maxArrDep = Math.max(maxArrDep, sTU.arrival.time)
 			}
@@ -42,11 +73,10 @@ const defaultTripUpdateExpiresAt = (tU, getNow, defaultTtl) => {
 		return maxArrDep + defaultTtl
 	}
 
-	// todo: fall back to tU.trip.start_{date,time} + buffer if available? – handle canceled trips without sTUs!
 	if (Number.isInteger(tU.timestamp)) {
-		return tU.timestamp + defaultTtl
+		return tU.timestamp + fallbackTripDuration + defaultTtl
 	}
-	return getNow() + defaultTtl
+	return estimateTripEndTime(tU, getNow, fallbackTripDuration) + defaultTtl
 }
 
 const defaultVehiclePositionExpiresAt = (vP, getNow, defaultTtl) => {
@@ -70,6 +100,9 @@ const defaultAlertExpiresAt = (alert, getNow, defaultTtl) => {
 const gtfsRtDifferentialToFullDataset = (opt = {}) => {
 	const {
 		ttl: defaultTtlMs,
+		canceledTtl : defaultCanceledTtlMs,
+		fallbackTripDuration: defaultFallbackTripDurationMs,
+		requireDifferentialInput,
 		timestamp: getNow,
 		tripUpdateSignature,
 		vehiclePositionSignature,
@@ -79,6 +112,9 @@ const gtfsRtDifferentialToFullDataset = (opt = {}) => {
 		alertExpiresAt,
 	} = {
 		ttl: 5 * 60 * 1000, // 5 minutes
+		canceledTtl: 24 * 60 * 60 * 1000, // 24 hours
+		fallbackTripDuration: 6 * 60 * 60 * 1000, // 6 hours
+		requireDifferentialInput: true,
 		timestamp: () => Date.now() / 1000 | 0,
 		tripUpdateSignature: (u) => {
 			const tripSig = tripSignature(u)
@@ -103,11 +139,13 @@ const gtfsRtDifferentialToFullDataset = (opt = {}) => {
 		...opt
 	}
 	const defaultTtl = Math.round(defaultTtlMs / 1000)
+	const canceledTtl = Math.round(defaultCanceledTtlMs / 1000)
+	const fallbackTripDuration = Math.round(defaultFallbackTripDurationMs / 1000)
 
 	const entityExpiresAt = (entity) => {
 		let expiresAt = -1
 		if (entity.trip_update) {
-			const _expiresAt = tripUpdateExpiresAt(entity.trip_update, getNow, defaultTtl)
+			const _expiresAt = tripUpdateExpiresAt(entity.trip_update, getNow, defaultTtl, canceledTtl, fallbackTripDuration)
 			Number.isInteger(_expiresAt, 'tripUpdateExpiresAt() must return an integer or null')
 			expiresAt = Math.max(expiresAt, _expiresAt)
 		}
@@ -160,7 +198,7 @@ const gtfsRtDifferentialToFullDataset = (opt = {}) => {
 			err.feedMessage = msg
 			throw err
 		}
-		if (msg.header.incrementality !== DIFFERENTIAL) {
+		if (msg.header.incrementality !== DIFFERENTIAL && requireDifferentialInput) {
 			const err = new UnsupportedFeedMessageError('FeedMessage must be DIFFERENTIAL')
 			err.feedMessage = msg
 			throw err
