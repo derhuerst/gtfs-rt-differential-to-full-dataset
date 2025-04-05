@@ -15,11 +15,16 @@ class UnsupportedKindOfFeedEntityError extends Error {}
 
 class FeedEntitySignatureError extends Error {}
 
+const getGtfsRtDateNow = () => {
+	const d = new Date();
+	return `${d.getFullYear()}${(d.getMonth() + 1).toString().padStart(2, '0')}${d.getDate().toString().padStart(2, '0')}`;
+}
+
 const tripSignature = (u) => {
-	if (u.trip.trip_id && u.trip.start_date) {
-		return u.trip.trip_id + '-' + u.trip.start_date
+	if (u.trip.trip_id) {
+		return u.trip.trip_id + '-' + (u.trip.start_date || getGtfsRtDateNow())
 	}
-	if (u.trip.route_id && u.vehicle.id) {
+	if (u.trip.route_id && u.vehicle && u.vehicle.id) {
 		return u.trip.route_id + '-' + u.vehicle.id
 	}
 	// todo: u.trip.route_id + slugg(u.vehicle.label) ?
