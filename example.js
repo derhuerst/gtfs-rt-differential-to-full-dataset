@@ -2,9 +2,9 @@
 
 const pump = require('pump')
 const ndjson = require('ndjson')
-const differentialToFullDataset = require('.')
+const {gtfsRtDifferentialToFullDataset} = require('.')
 
-const toFullDataset = differentialToFullDataset({
+const toFullDataset = gtfsRtDifferentialToFullDataset({
 	ttl: 2 * 60 * 1000, // 2 minutes
 })
 
