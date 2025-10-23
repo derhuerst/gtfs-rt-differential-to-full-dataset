@@ -136,7 +136,7 @@ const gtfsRtDifferentialToFullDataset = (opt = {}) => {
 
 	const processFeedEntity = (entity) => {
 		// If the entity is not being deleted, exactly one of 'trip_update', 'vehicle' and 'alert' fields should be populated.
-		// https://developers.google.com/transit/gtfs-realtime/reference#message-feedentity
+		// https://gtfs.org/documentation/realtime/reference/#message-feedentity
 		let sig = null
 		if (entity.trip_update) {
 			sig = tripUpdateSignature(entity.trip_update)
