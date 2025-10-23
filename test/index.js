@@ -77,12 +77,13 @@ const header = {
 	incrementality: FeedHeader.Incrementality.FULL_DATASET,
 }
 
-const feedMsgEqual = (store, entities, feedTimestamp, testName) => {
+const feedMsgEqual = (store, entities, feedTimestamp, feedVersion, testName) => {
 	const actual = store.asFeedMessage()
 	const expected = FeedMessage.encode({
 		header: {
 			...header,
 			timestamp: feedTimestamp,
+			feed_version: feedVersion,
 		},
 		entity: entities,
 	}).finish()
@@ -94,27 +95,30 @@ const feedMsgEqual = (store, entities, feedTimestamp, testName) => {
 }
 
 const store = createEntitiesStore(timestamp)
-feedMsgEqual(store, [], timestamp(), 'init')
+feedMsgEqual(store, [], timestamp(), null, 'init')
 
 store.put('foo', e1, timestamp() + ttl)
-feedMsgEqual(store, [e1], e1.vehicle.timestamp, 'after put(foo)')
+feedMsgEqual(store, [e1], e1.vehicle.timestamp, null, 'after put(foo)')
 
 store.put('bar', e2, timestamp() + ttl)
-feedMsgEqual(store, [e1, e2], e1.vehicle.timestamp, 'after put(bar)')
+feedMsgEqual(store, [e1, e2], e1.vehicle.timestamp, null, 'after put(bar)')
 
 store.put('baz', e3, timestamp() + ttl)
-feedMsgEqual(store, [e1, e2, e3], e3.trip_update.timestamp, 'after put(baz)')
+feedMsgEqual(store, [e1, e2, e3], e3.trip_update.timestamp, null, 'after put(baz)')
 
 store.put('foo', e3, timestamp() + ttl)
-feedMsgEqual(store, [e2, e3, e3], e3.trip_update.timestamp, 'after put(foo)')
+feedMsgEqual(store, [e2, e3, e3], e3.trip_update.timestamp, null, 'after put(foo)')
 
 store.del('bar')
-feedMsgEqual(store, [e3, e3], e3.trip_update.timestamp, 'after del(bar)')
+feedMsgEqual(store, [e3, e3], e3.trip_update.timestamp, null, 'after del(bar)')
+
+store.setFeedVersion('some Version')
+feedMsgEqual(store, [e3, e3], e3.trip_update.timestamp, 'some Version', 'after setFeedVersion()')
 
 strictEqual(store.nrOfEntities(), 2, 'after del(bar): nrOfEntities()')
 
 store.flush()
-feedMsgEqual(store, [], timestamp(), 'after flush()') // todo: this is flaky
+feedMsgEqual(store, [], timestamp(), 'some Version', 'after flush()') // todo: this is flaky
 
 
 {
@@ -122,14 +126,14 @@ feedMsgEqual(store, [], timestamp(), 'after flush()') // todo: this is flaky
 	const timestamp = () => ++t
 
 	const store = createEntitiesStore(timestamp)
-	feedMsgEqual(store, [], t, 'init')
+	feedMsgEqual(store, [], t, null, 'init')
 
 	store.put('foo', e1, t + ttl)
 	store.put('bar', e2, t + ttl)
-	feedMsgEqual(store, [e1, e2], e1.vehicle.timestamp, 'after put(foo) & put(bar)')
+	feedMsgEqual(store, [e1, e2], e1.vehicle.timestamp, null, 'after put(foo) & put(bar)')
 
 	store.flush()
-	feedMsgEqual(store, [], t, 'after flush()')
+	feedMsgEqual(store, [], t, null, 'after flush()')
 }
 
 
