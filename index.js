@@ -77,6 +77,7 @@ const gtfsRtDifferentialToFullDataset = (opt = {}) => {
 		tripUpdateExpiresAt,
 		vehiclePositionExpiresAt,
 		alertExpiresAt,
+		initialFeedVersion,
 	} = {
 		ttl: 5 * 60 * 1000, // 5 minutes
 		timestamp: () => Date.now() / 1000 | 0,
@@ -100,6 +101,8 @@ const gtfsRtDifferentialToFullDataset = (opt = {}) => {
 		tripUpdateExpiresAt: defaultTripUpdateExpiresAt,
 		vehiclePositionExpiresAt: defaultVehiclePositionExpiresAt,
 		alertExpiresAt: defaultAlertExpiresAt,
+		// Value for feed_version to be used initially until a new one is set manually.
+		initialFeedVersion: null,
 		...opt
 	}
 	const defaultTtl = Math.round(defaultTtlMs / 1000)
@@ -126,7 +129,9 @@ const gtfsRtDifferentialToFullDataset = (opt = {}) => {
 			: expiresAt
 	}
 
-	const entitiesStore = createEntitiesStore(getNow)
+	const entitiesStore = createEntitiesStore(getNow, {
+		initialFeedVersion,
+	})
 
 	const processFeedEntity = (entity) => {
 		// If the entity is not being deleted, exactly one of 'trip_update', 'vehicle' and 'alert' fields should be populated.
@@ -197,6 +202,7 @@ const gtfsRtDifferentialToFullDataset = (opt = {}) => {
 	out.asFeedMessage = asFeedMessage
 	// todo: let asFeedMessage return this
 	out.timeModified = () => entitiesStore.getTimestamp()
+	out.setFeedVersion = entitiesStore.setFeedVersion
 	out.nrOfEntities = entitiesStore.nrOfEntities
 
 	// todo [breaking]: change return value to a regular object
