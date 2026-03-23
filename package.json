@@ -1,7 +1,7 @@
 {
 	"name": "gtfs-rt-differential-to-full-dataset",
 	"description": "Transform a stream of DIFFERENTIAL-mode GTFS Realtime (GTFS-RT) FeedEntities into a FULL_DATASET-mode feed.",
-	"version": "3.0.0-alpha.2",
+	"version": "3.0.0-beta.0",
 	"main": "index.js",
 	"files": [
 		"index.js",
