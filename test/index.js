@@ -137,6 +137,10 @@ feedMsgEqual(store, [], timestamp(), 'some Version', 'after flush()') // todo: t
 }
 
 
+{
+// Note: Fits the `FeedEntity.timestamp`s & `StopTimeEvent.time`s in `data.ndjson`.
+const timestamp = () => 1584000000
+
 const full = gtfsRtDifferentialToFullDataset({ttl, timestamp})
 
 let changeEmitted = false
@@ -157,7 +161,7 @@ pump(
 		strictEqual(changeEmitted, true, 'no `change` event emitted')
 		bufEqual(full.asFeedMessage(), Buffer.from(
 			`\
-0a090a03322e301000180112b6020a01321ab0020a250a15317c32353434\
+0a0d0a03322e3010001880d8a7f30512b6020a01321ab0020a250a15317c32353434\
 357c327c38367c31323033323032301a0832303230303331322a026e3312\
 1c12001a08080010b8b1abf305220c393030303030303530333031280012\
 36121108c4ffffffffffffffff0110c0bfabf3051a1108c4ffffffffffff\
@@ -181,3 +185,4 @@ ff0110b0c1abf3051a00220c39303030303030353631303128001a1a0a05\
 		console.info('ok 1 works')
 	}
 )
+}
