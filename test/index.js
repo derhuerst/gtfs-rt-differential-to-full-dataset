@@ -77,12 +77,13 @@ const header = {
 	incrementality: FeedHeader.Incrementality.FULL_DATASET,
 }
 
-const feedMsgEqual = (store, entities, feedTimestamp, testName) => {
+const feedMsgEqual = (store, entities, feedTimestamp, feedVersion, testName) => {
 	const actual = store.asFeedMessage()
 	const expected = FeedMessage.encode({
 		header: {
 			...header,
 			timestamp: feedTimestamp,
+			feed_version: feedVersion,
 		},
 		entity: entities,
 	}).finish()
@@ -93,30 +94,52 @@ const feedMsgEqual = (store, entities, feedTimestamp, testName) => {
 	strictEqual(store.getTimestamp(), feedTimestamp, testName + ': store.getTimestamp() should be correct')
 }
 
-const store = createEntitiesStore(ttl, timestamp)
-feedMsgEqual(store, [], timestamp(), 'init')
+const store = createEntitiesStore(timestamp)
+feedMsgEqual(store, [], timestamp(), null, 'init')
 
-store.put('foo', e1)
-feedMsgEqual(store, [e1], e1.vehicle.timestamp, 'after put(foo)')
+store.put('foo', e1, timestamp() + ttl)
+feedMsgEqual(store, [e1], e1.vehicle.timestamp, null, 'after put(foo)')
 
-store.put('bar', e2)
-feedMsgEqual(store, [e1, e2], e1.vehicle.timestamp, 'after put(bar)')
+store.put('bar', e2, timestamp() + ttl)
+feedMsgEqual(store, [e1, e2], e1.vehicle.timestamp, null, 'after put(bar)')
 
-store.put('baz', e3)
-feedMsgEqual(store, [e1, e2, e3], e3.trip_update.timestamp, 'after put(baz)')
+store.put('baz', e3, timestamp() + ttl)
+feedMsgEqual(store, [e1, e2, e3], e3.trip_update.timestamp, null, 'after put(baz)')
 
-store.put('foo', e3)
-feedMsgEqual(store, [e2, e3, e3], e3.trip_update.timestamp, 'after put(foo)')
+store.put('foo', e3, timestamp() + ttl)
+feedMsgEqual(store, [e2, e3, e3], e3.trip_update.timestamp, null, 'after put(foo)')
 
 store.del('bar')
-feedMsgEqual(store, [e3, e3], e3.trip_update.timestamp, 'after del(bar)')
+feedMsgEqual(store, [e3, e3], e3.trip_update.timestamp, null, 'after del(bar)')
+
+store.setFeedVersion('some Version')
+feedMsgEqual(store, [e3, e3], e3.trip_update.timestamp, 'some Version', 'after setFeedVersion()')
 
 strictEqual(store.nrOfEntities(), 2, 'after del(bar): nrOfEntities()')
 
 store.flush()
-feedMsgEqual(store, [], timestamp(), 'after flush()') // todo: this is flaky
+feedMsgEqual(store, [], timestamp(), 'some Version', 'after flush()') // todo: this is flaky
 
 
+{
+	let t = 1
+	const timestamp = () => ++t
+
+	const store = createEntitiesStore(timestamp)
+	feedMsgEqual(store, [], t, null, 'init')
+
+	store.put('foo', e1, t + ttl)
+	store.put('bar', e2, t + ttl)
+	feedMsgEqual(store, [e1, e2], e1.vehicle.timestamp, null, 'after put(foo) & put(bar)')
+
+	store.flush()
+	feedMsgEqual(store, [], t, null, 'after flush()')
+}
+
+
+{
+// Note: Fits the `FeedEntity.timestamp`s & `StopTimeEvent.time`s in `data.ndjson`.
+const timestamp = () => 1584000000
 
 const full = gtfsRtDifferentialToFullDataset({ttl, timestamp})
 
@@ -138,7 +161,7 @@ pump(
 		strictEqual(changeEmitted, true, 'no `change` event emitted')
 		bufEqual(full.asFeedMessage(), Buffer.from(
 			`\
-0a090a03322e301000180112b6020a01321ab0020a250a15317c32353434\
+0a0d0a03322e3010001880d8a7f30512b6020a01321ab0020a250a15317c32353434\
 357c327c38367c31323033323032301a0832303230303331322a026e3312\
 1c12001a08080010b8b1abf305220c393030303030303530333031280012\
 36121108c4ffffffffffffffff0110c0bfabf3051a1108c4ffffffffffff\
@@ -162,3 +185,4 @@ ff0110b0c1abf3051a00220c39303030303030353631303128001a1a0a05\
 		console.info('ok 1 works')
 	}
 )
+}

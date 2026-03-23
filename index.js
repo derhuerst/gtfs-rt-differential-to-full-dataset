@@ -1,10 +1,13 @@
 'use strict'
 
+const createDebug = require('debug')
 const {FeedHeader} = require('gtfs-rt-bindings')
 const {Writable} = require('stream')
 const createEntitiesStore = require('./lib/entities-store')
 
 const {DIFFERENTIAL} = FeedHeader.Incrementality
+
+const debug = createDebug('gtfs-rt-differential-to-full-dataset')
 
 class UnsupportedFeedMessageError extends Error {}
 
@@ -23,12 +26,58 @@ const tripSignature = (u) => {
 	return null
 }
 
+const defaultTripUpdateExpiresAt = (tU, getNow, defaultTtl) => {
+	let maxArrDep = -1
+	if (Array.isArray(tU.stop_time_update)) {
+		for (const sTU of tU.stop_time_update) {
+			if (sTU.arrival && Number.isInteger(sTU.arrival.time)) {
+				maxArrDep = Math.max(maxArrDep, sTU.arrival.time)
+			}
+			if (sTU.departure && Number.isInteger(sTU.departure.time)) {
+				maxArrDep = Math.max(maxArrDep, sTU.departure.time)
+			}
+		}
+	}
+	if (maxArrDep !== -1) {
+		return maxArrDep + defaultTtl
+	}
+
+	// todo: fall back to tU.trip.start_{date,time} + buffer if available? – handle canceled trips without sTUs!
+	if (Number.isInteger(tU.timestamp)) {
+		return tU.timestamp + defaultTtl
+	}
+	return getNow() + defaultTtl
+}
+
+const defaultVehiclePositionExpiresAt = (vP, getNow, defaultTtl) => {
+	// todo: first use vP.trip.start_{date,time} + buffer if available?
+	if (Number.isInteger(vP.timestamp)) {
+		return vP.timestamp + defaultTtl
+	}
+	return getNow() + defaultTtl
+}
+
+const defaultAlertExpiresAt = (alert, getNow, defaultTtl) => {
+	if (alert.active_period) {
+		return Number.isInteger(alert.active_period.end)
+			? alert.active_period.end
+			: alert.active_period.start + defaultTtl
+	}
+	// todo: fall back to alert.informed_entity.trip.start_{date,time} if available?
+	return getNow() + defaultTtl
+}
+
 const gtfsRtDifferentialToFullDataset = (opt = {}) => {
 	const {
-		ttl,
-		timestamp,
+		ttl: defaultTtlMs,
+		timestamp: getNow,
 		tripUpdateSignature,
 		vehiclePositionSignature,
+		alertSignature,
+		tripUpdateExpiresAt,
+		vehiclePositionExpiresAt,
+		alertExpiresAt,
+		initialFeedVersion,
 	} = {
 		ttl: 5 * 60 * 1000, // 5 minutes
 		timestamp: () => Date.now() / 1000 | 0,
@@ -42,21 +91,60 @@ const gtfsRtDifferentialToFullDataset = (opt = {}) => {
 			const tripSig = tripSignature(p)
 			return tripSig ? 'vehicle_position-' + tripSig : null
 		},
+		alertSignature: (a) => {
+			// todo: a comment from the draft DIFFERENTIAL Google doc (https://docs.google.com/document/d/19Dy6afltgs1ebbxKQGX4jpzWHh--Iw4AOO_rtX1bQoc/view):
+			// > Alerts. Unlike the other two message types, multiple Alerts may accumulate to the same GTFS entity. Without alert IDs and deletion flags, it would not be possible to remove them in differential mode. We can completely sidestep the problem by simply not using differential Alerts. Alert datasets are generally small and do not benefit greatly from low update latency. They seem to be a good use case for the FULL_DATASET provider push combination.
+			// // todo: sort informed entities & their keys
+			// const informed = JSON.stringify(a.informed_entity.map(ie => Object.entries(ie).filter((k, v) => v !== null)))
+			// // todo: also use .cause, .effect, .url & .severity_level?
+			return null
+		},
+		tripUpdateExpiresAt: defaultTripUpdateExpiresAt,
+		vehiclePositionExpiresAt: defaultVehiclePositionExpiresAt,
+		alertExpiresAt: defaultAlertExpiresAt,
+		// Value for feed_version to be used initially until a new one is set manually.
+		initialFeedVersion: null,
 		...opt
 	}
+	const defaultTtl = Math.round(defaultTtlMs / 1000)
 
-	const entitiesStore = createEntitiesStore(ttl, timestamp)
+	const entityExpiresAt = (entity) => {
+		let expiresAt = -1
+		if (entity.trip_update) {
+			const _expiresAt = tripUpdateExpiresAt(entity.trip_update, getNow, defaultTtl)
+			Number.isInteger(_expiresAt, 'tripUpdateExpiresAt() must return an integer or null')
+			expiresAt = Math.max(expiresAt, _expiresAt)
+		}
+		if (entity.vehicle) {
+			const _expiresAt = vehiclePositionExpiresAt(entity.vehicle, getNow, defaultTtl)
+			Number.isInteger(_expiresAt, 'vehiclePositionExpiresAt() must return an integer or null')
+			expiresAt = Math.max(expiresAt, _expiresAt)
+		}
+		if (entity.alert) {
+			const _expiresAt = alertExpiresAt(entity.alert, getNow, defaultTtl)
+			Number.isInteger(_expiresAt, 'alertExpiresAt() must return an integer or null')
+			expiresAt = Math.max(expiresAt, _expiresAt)
+		}
+		return expiresAt === -1
+			? getNow() + defaultTtl
+			: expiresAt
+	}
+
+	const entitiesStore = createEntitiesStore(getNow, {
+		initialFeedVersion,
+	})
 
 	const processFeedEntity = (entity) => {
 		// If the entity is not being deleted, exactly one of 'trip_update', 'vehicle' and 'alert' fields should be populated.
-		// https://developers.google.com/transit/gtfs-realtime/reference#message-feedentity
+		// https://gtfs.org/documentation/realtime/reference/#message-feedentity
+		// eslint-disable-next-line no-useless-assignment
 		let sig = null
 		if (entity.trip_update) {
 			sig = tripUpdateSignature(entity.trip_update)
 		} else if (entity.vehicle) {
 			sig = vehiclePositionSignature(entity.vehicle)
 		} else if (entity.alert) {
-			// todo: see #1
+			sig = alertSignature(entity.alert)
 		} else {
 			const err = new UnsupportedKindOfFeedEntityError('invalid/unsupported kind of FeedEntity')
 			err.feedEntity = entity
@@ -64,7 +152,9 @@ const gtfsRtDifferentialToFullDataset = (opt = {}) => {
 		}
 
 		if (sig !== null) {
-			entitiesStore.put(sig, entity)
+			const expiresAt = entityExpiresAt(entity)
+			debug('storing entity', sig, 'expiresAt', expiresAt, 'entity', entity)
+			entitiesStore.put(sig, entity, expiresAt)
 			return;
 		}
 		const err = new FeedEntitySignatureError('could not determine FeedEntity signature')
@@ -114,6 +204,7 @@ const gtfsRtDifferentialToFullDataset = (opt = {}) => {
 	out.asFeedMessage = asFeedMessage
 	// todo: let asFeedMessage return this
 	out.timeModified = () => entitiesStore.getTimestamp()
+	out.setFeedVersion = entitiesStore.setFeedVersion
 	out.nrOfEntities = entitiesStore.nrOfEntities
 
 	// todo [breaking]: change return value to a regular object
@@ -125,4 +216,7 @@ module.exports = {
 	UnsupportedFeedMessageError,
 	UnsupportedKindOfFeedEntityError,
 	FeedEntitySignatureError,
+	defaultTripUpdateExpiresAt,
+	defaultVehiclePositionExpiresAt,
+	defaultAlertExpiresAt,
 }
