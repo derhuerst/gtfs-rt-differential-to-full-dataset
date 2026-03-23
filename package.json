@@ -21,7 +21,7 @@
 	"bugs": "https://github.com/derhuerst/gtfs-rt-differential-to-full-dataset/issues",
 	"license": "ISC",
 	"engines": {
-		"node": ">=20"
+		"node": ">=20.19"
 	},
 	"dependencies": {
 		"debug": "^4.4.0",
@@ -30,7 +30,9 @@
 		"sorted-array-functions": "^1.3.0"
 	},
 	"devDependencies": {
-		"eslint": "^7.8.1",
+		"@eslint/js": "^10.0.1",
+		"eslint": "^10.1.0",
+		"globals": "^17.4.0",
 		"ndjson": "^2.0.0",
 		"pump": "^3.0.0"
 	},
